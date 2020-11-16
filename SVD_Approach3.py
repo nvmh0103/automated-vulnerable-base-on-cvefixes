@@ -1,59 +1,15 @@
 # -*- coding: utf-8 -*-
 
-import argparse
-import sys
 import logging
-from logging.handlers import RotatingFileHandler
 import tensorflow as tf
 import pandas as pd
-import h5py
-import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.metrics
 
 import SVD_common as svdc
 
-logging.debug("Tensorlfow version: ", tf.__version__)
-logging.debug("Eager mode: ", tf.executing_eagerly())
-logging.debug("GPU is", "available" if tf.test.is_gpu_available() else "NOT AVAILABLE")
-
-def input_arguments():
-    """
-    Takes the input from terminal and returns a parse dictionary for arguments
-    
-    Parameters
-    ----------
-    NONE
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-d" ,"--dataset", type= str, nargs= 1,
-                        help="dataset that will be vectorized, eg: VDISC")
-    parser.add_argument("-p" ,"--pickle",
-                        help="pickle dataset files", action="store_const", const=True)
-    parser.add_argument("-t" ,"--train",
-                        help="train model", action="store_const", const=True)
-    parser.add_argument("-ll", "--loglevel", type= int, nargs = '?', const= 0, default= 0,
-                        help="set logging level. Default = 0 (NOTSET)."
-                        " Treshold levels: "
-                        " DEBUG = 10," 
-                        " INFO = 20,"
-                        " WARNING = 30,"
-                        " ERROR = 40,"
-                        " CRITICAL = 50."
-                        )
-
-    parser.add_argument("-c", "--console", type= int, nargs = '?', const= 1, default= 0,
-                        help="log file output type, default (or 1) returns .log file. '-c' returns terminal view")
-    global args
-    args = vars(parser.parse_args())
-    if(args["dataset"] == None):
-        parser.print_help()
-        sys.exit()
-    return args
-    
-def trainModel():
-    global args;
+def trainModel(dataset_name):
     # Generate random seed
     #myrand=np.random.randint(1, 99999 + 1)
     myrand=71926
@@ -65,12 +21,11 @@ def trainModel():
     WORDS_SIZE=10000
     INPUT_SIZE=500
     NUM_CLASSES=2
-    MODEL_NUM=0
     EPOCHS=2
     
-    train=pd.read_pickle("pickle_file/"+args['dataset'][0]+"_train.pickle")
-    validate=pd.read_pickle("pickle_file/"+args['dataset'][0]+"_validate.pickle")
-    test=pd.read_pickle("pickle_file/"+args['dataset'][0]+"_test.pickle")
+    train=pd.read_pickle("pickle_file/"+dataset_name+"_train.pickle")
+    validate=pd.read_pickle("pickle_file/"+dataset_name+"_validate.pickle")
+    test=pd.read_pickle("pickle_file/"+dataset_name+"_test.pickle")
     
     for dataset in [train, validate, test]:
         for index, row in dataset.iterrows():
@@ -80,8 +35,6 @@ def trainModel():
         dataset.iloc[:,6] = dataset.iloc[:,6].map({False: 0, True: 1})
             
     x_all = train['functionSource']
-    one = train[train.iloc[:,1]==1].index.values.astype(int)
-    zero = train[train.iloc[:,1]==0].index.values.astype(int)
     # Tokenizer with word-level
     tokenizer = tf.keras.preprocessing.text.Tokenizer(char_level=False)
     tokenizer.fit_on_texts(list(x_all))
@@ -188,8 +141,6 @@ def trainModel():
     # Load model
     model = tf.keras.models.load_model("model/model-ALL-last.hdf5")
     
-    ceiling = 7
-    
     results = model.evaluate(x_test, test.iloc[:,6].to_numpy(), batch_size=128)
     for num in range(0,len(model.metrics_names)):
         print(model.metrics_names[num]+': '+str(results[num]))
@@ -198,7 +149,7 @@ def trainModel():
     predicted_prob = model.predict(x_test)
     
     confusion = sklearn.metrics.confusion_matrix(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)
-    print(confusion)
+    #print(confusion)
     
     tn, fp, fn, tp = confusion.ravel()
     print('\nTP:',tp)
@@ -236,16 +187,12 @@ def trainModel():
     
 
 def main(): 
-    global args
-    args = input_arguments()
     global logger
-    logger = svdc.configureLogging('SVD_Approach3.log', args['loglevel'], args['console'])
-    if(args['pickle']):
-        svdc.convert2Pickle(args['dataset'][0])
-    if(args['train']):
-        trainModel()
+    dataset_name = "VDISC"
+    logger = svdc.configureLogging('SVD_Approach3.log', "DEBUG", False)
+    svdc.convert2Pickle(dataset_name)
+    trainModel(dataset_name)
 
-args = None
 logger = None
 
 if __name__=="__main__": 

@@ -5,8 +5,15 @@ from logging.handlers import RotatingFileHandler
 import sys
 import h5py
 import pandas as pd
+import os.path
+
+def info:
+    logging.debug("Tensorlfow version: ", tf.__version__)
+    logging.debug("Eager mode: ", tf.executing_eagerly())
+    logging.debug("GPU is", "available" if tf.test.is_gpu_available() else "NOT AVAILABLE")
 
 def configureLogging(logFile, logLevel, console):
+    info()
     """
     logs the error messages and info to a file
     
@@ -29,6 +36,9 @@ def configureLogging(logFile, logLevel, console):
 
 
 def toPickle(dataset, dataSetType):
+    pickle_file = "pickle_file/"+dataset+"_"+dataSetType+".pickle"
+    if(os.path.exists(pickle_file)):
+        return
     # List all groups
     data = h5py.File("dataset/"+dataset+"_"+dataSetType+".hdf5",'r')
     data.visit(print)
@@ -42,7 +52,7 @@ def toPickle(dataset, dataSetType):
     
     mydf.rename(columns={0:'functionSource'},inplace=True)
     mydf.iloc[0:5,0:]
-    mydf.to_pickle("pickle_file/"+dataset+"_"+dataSetType+".pickle")
+    mydf.to_pickle(pickle_file)
 
 def convert2Pickle(dataset):
     # dataset has 3 parts

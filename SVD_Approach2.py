@@ -11,46 +11,6 @@ import sklearn.metrics
 
 import SVD_common as svdc
 
-logging.debug("Tensorlfow version: ", tf.__version__)
-logging.debug("Eager mode: ", tf.executing_eagerly())
-logging.debug("GPU is", "available" if tf.test.is_gpu_available() else "NOT AVAILABLE")
-
-def input_arguments():
-    """
-    Takes the input from terminal and returns a parse dictionary for arguments
-    
-    Parameters
-    ----------
-    NONE
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-d" ,"--dataset", type= str, nargs= 1,
-                        help="dataset that will be vectorized, eg: VDISC")
-    parser.add_argument("-p" ,"--pickle",
-                        help="pickle dataset files", action="store_const", const=True)
-    parser.add_argument("-t" ,"--train",
-                        help="train model", action="store_const", const=True)
-    parser.add_argument("-ll", "--loglevel", type= int, nargs = '?', const= 0, default= 0,
-                        help="set logging level. Default = 0 (NOTSET)."
-                        " Treshold levels: "
-                        " DEBUG = 10," 
-                        " INFO = 20,"
-                        " WARNING = 30,"
-                        " ERROR = 40,"
-                        " CRITICAL = 50."
-                        )
-
-    parser.add_argument("-c", "--console", type= int, nargs = '?', const= 1, default= 0,
-                        help="log file output type, default (or 1) returns .log file. '-c' returns terminal view")
-    global args
-    args = vars(parser.parse_args())
-    if(args["dataset"] == None):
-        parser.print_help()
-        sys.exit()
-    return args
-
-
-
 def trainModel():
     global args;
     # Generate random seed
@@ -64,7 +24,6 @@ def trainModel():
     WORDS_SIZE=10000
     INPUT_SIZE=500
     NUM_CLASSES=2
-    MODEL_NUM=0
     EPOCHS=10
     
     train=pd.read_pickle("pickle_file/"+args['dataset'][0]+"_train.pickle")
@@ -270,14 +229,11 @@ def trainModel():
     
     
 def main(): 
-    global args
-    args = input_arguments()
     global logger
-    logger = svdc.configureLogging('SVD_Approach2.log', args['loglevel'], args['console'])
-    if(args['pickle']):
-        svdc.convert2Pickle(args['dataset'][0])
-    if(args['train']):
-        trainModel()
+    dataset_name = "VDISC"
+    logger = svdc.configureLogging('SVD_Approach2.log', "DEBUG", False)
+    svdc.convert2Pickle(dataset_name)
+    trainModel(dataset_name)
 
 args = None
 logger = None
