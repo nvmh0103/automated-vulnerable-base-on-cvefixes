@@ -28,11 +28,12 @@ def configureLogging(logFile, logLevel, console):
     logHandler = RotatingFileHandler(logFile, maxBytes=1024*1024*10, backupCount=20)
     logHandler.setLevel(logging.INFO)
     logger.addHandler(logHandler)
+    logger.setLevel(logLevel)
 
     if(console):
         logging.basicConfig(stream=sys.stdout, level= logLevel, format=FORMAT)
     else:
-        logging.basicConfig(level= logLevel, format=FORMAT)
+        logging.basicConfig(format=FORMAT)
     return logger
 
 

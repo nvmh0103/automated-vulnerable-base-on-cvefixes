@@ -99,7 +99,7 @@ def trainModel(dataset_name):
     
     ## Compile model with metrics
     model.compile(optimizer=adam, loss='binary_crossentropy', metrics=['accuracy'])
-    print("CNN model built: ")
+    logging.debug("CNN model built: ")
     model.summary()
     
     ## Create TensorBoard callbacks
@@ -143,7 +143,7 @@ def trainModel(dataset_name):
     
     results = model.evaluate(x_test, test.iloc[:,6].to_numpy(), batch_size=128)
     for num in range(0,len(model.metrics_names)):
-        print(model.metrics_names[num]+': '+str(results[num]))
+        logging.debug(model.metrics_names[num]+': '+str(results[num]))
     
     predicted = model.predict_classes(x_test)
     predicted_prob = model.predict(x_test)
@@ -152,19 +152,19 @@ def trainModel(dataset_name):
     #print(confusion)
     
     tn, fp, fn, tp = confusion.ravel()
-    print('\nTP:',tp)
-    print('FP:',fp)
-    print('TN:',tn)
-    print('FN:',fn)
+    logging.debug('\nTP:',tp)
+    logging.debug('FP:',fp)
+    logging.debug('TN:',tn)
+    logging.debug('FN:',fn)
     
     ## Performance measure
-    print('\nAccuracy: '+ str(sklearn.metrics.accuracy_score(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)))
-    print('Precision: '+ str(sklearn.metrics.precision_score(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)))
-    print('Recall: '+ str(sklearn.metrics.recall_score(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)))
-    print('F-measure: '+ str(sklearn.metrics.f1_score(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)))
-    print('Precision-Recall AUC: '+ str(sklearn.metrics.average_precision_score(y_true=test.iloc[:,6].to_numpy(), y_score=predicted_prob)))
-    print('AUC: '+ str(sklearn.metrics.roc_auc_score(y_true=test.iloc[:,6].to_numpy(), y_score=predicted_prob)))
-    print('MCC: '+ str(sklearn.metrics.matthews_corrcoef(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)))
+    logging.debug('\nAccuracy: '+ str(sklearn.metrics.accuracy_score(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)))
+    logging.debug('Precision: '+ str(sklearn.metrics.precision_score(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)))
+    logging.debug('Recall: '+ str(sklearn.metrics.recall_score(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)))
+    logging.debug('F-measure: '+ str(sklearn.metrics.f1_score(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)))
+    logging.debug('Precision-Recall AUC: '+ str(sklearn.metrics.average_precision_score(y_true=test.iloc[:,6].to_numpy(), y_score=predicted_prob)))
+    logging.debug('AUC: '+ str(sklearn.metrics.roc_auc_score(y_true=test.iloc[:,6].to_numpy(), y_score=predicted_prob)))
+    logging.debug('MCC: '+ str(sklearn.metrics.matthews_corrcoef(y_true=test.iloc[:,6].to_numpy(), y_pred=predicted)))
     
     model.metrics_names
     
