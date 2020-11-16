@@ -2,12 +2,13 @@
 
 import logging
 from logging.handlers import RotatingFileHandler
+import tensorflow as tf
 import sys
 import h5py
 import pandas as pd
 import os.path
 
-def info:
+def info():
     logging.debug("Tensorlfow version: ", tf.__version__)
     logging.debug("Eager mode: ", tf.executing_eagerly())
     logging.debug("GPU is", "available" if tf.test.is_gpu_available() else "NOT AVAILABLE")
@@ -31,7 +32,7 @@ def configureLogging(logFile, logLevel, console):
     if(console):
         logging.basicConfig(stream=sys.stdout, level= logLevel, format=FORMAT)
     else:
-        logging.basicConfig(level= logLevel?logLevel:"DEBUG", format=FORMAT)
+        logging.basicConfig(level= logLevel, format=FORMAT)
     return logger
 
 
