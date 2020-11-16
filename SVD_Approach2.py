@@ -5,7 +5,6 @@ import sys
 import logging
 import tensorflow as tf
 import pandas as pd
-import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.metrics
@@ -49,7 +48,9 @@ def input_arguments():
         parser.print_help()
         sys.exit()
     return args
-    
+
+
+
 def trainModel():
     global args;
     # Generate random seed
@@ -75,7 +76,10 @@ def trainModel():
             dataset.iloc[:,col] = dataset.iloc[:,col].map({False: 0, True: 1})
             
     x_all = train['functionSource']
-    train.head()
+    pd.value_counts(train.iloc[:,1])
+    one = train[train.iloc[:,1]==1].index.values.astype(int)
+    zero = train[train.iloc[:,1]==0].index.values.astype(int)
+
     # Tokenizer with word-level
     tokenizer = tf.keras.preprocessing.text.Tokenizer(char_level=False)
     tokenizer.fit_on_texts(list(x_all))
@@ -107,7 +111,9 @@ def trainModel():
     x_validate = x_validate.astype(np.int64)
     
     # Example data
-    test.iloc[0:5,1:6]
+    logging.debug('Train', pd.value_counts(train.iloc[:,1]))
+    logging.debug('\nTest', pd.value_counts(test.iloc[:,1]))
+    logging.debug('\nValidate', pd.value_counts(validate.iloc[:,1]))
     
     y_train=[]
     y_test=[]
@@ -119,36 +125,32 @@ def trainModel():
         y_validate.append(tf.keras.utils.to_categorical(validate.iloc[:,col], num_classes=NUM_CLASSES).astype(np.int64))
     
     # Example data
-    y_test[0][1:10]
+    pd.value_counts(y_test[0][:,1])
     
     # Create a random weights matrix
     
     random_weights = np.random.normal(size=(WORDS_SIZE, 13),scale=0.01)
     
     # Must use non-sequential model building to create branches in the output layer
-    inp_layer = tf.keras.layers.Input(shape=(INPUT_SIZE,))
-    mid_layers = tf.keras.layers.Embedding(input_dim = WORDS_SIZE,
+    model = tf.keras.Sequential(name="CNN")
+    model.add(tf.keras.layers.Embedding(input_dim = WORDS_SIZE,
                                         output_dim = 13,
                                         weights=[random_weights],
-                                        input_length = INPUT_SIZE)(inp_layer)
-    mid_layers = tf.keras.layers.Convolution1D(filters=512, kernel_size=(9), padding='same', activation='relu')(mid_layers)
-    mid_layers = tf.keras.layers.MaxPool1D(pool_size=5)(mid_layers)
-    mid_layers = tf.keras.layers.Dropout(0.5)(mid_layers)
-    mid_layers = tf.keras.layers.Flatten()(mid_layers)
-    mid_layers = tf.keras.layers.Dense(64, activation='relu')(mid_layers)
-    mid_layers = tf.keras.layers.Dense(16, activation='relu')(mid_layers)
-    output1 = tf.keras.layers.Dense(2, activation='softmax')(mid_layers)
-    output2 = tf.keras.layers.Dense(2, activation='softmax')(mid_layers)
-    output3 = tf.keras.layers.Dense(2, activation='softmax')(mid_layers)
-    output4 =tf.keras.layers.Dense(2, activation='softmax')(mid_layers)
-    output5 = tf.keras.layers.Dense(2, activation='softmax')(mid_layers)
-    model = tf.keras.Model(inp_layer,[output1,output2,output3,output4,output5])
+                                        input_length = INPUT_SIZE))
+    #model.add(tf.keras.layers.GaussianNoise(stddev=0.01))
+    model.add(tf.keras.layers.Convolution1D(filters=512, kernel_size=(9), padding='same', activation='relu'))
+    model.add(tf.keras.layers.MaxPool1D(pool_size=5))
+    model.add(tf.keras.layers.Dropout(0.5))
+    model.add(tf.keras.layers.Flatten())
+    model.add(tf.keras.layers.Dense(64, activation='relu'))
+    model.add(tf.keras.layers.Dense(16, activation='relu'))
+    model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
     
     # Define custom optimizers
     adam = tf.keras.optimizers.Adam(lr=0.005, beta_1=0.9, beta_2=0.999, epsilon=1, decay=0.0, amsgrad=False)
     
     ## Compile model with metrics
-    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=adam, loss='binary_crossentropy', metrics=['accuracy'])
     logging.debug("CNN model built: ")
     model.summary()
     
@@ -173,16 +175,18 @@ def trainModel():
                                              save_freq='epoch', 
                                              verbose=1)
     
-    class_weights = [{0: 1., 1: 5.},{0: 1., 1: 5.},{0: 1., 1: 5.},{0: 1., 1: 5.},{0: 1., 1: 5.}]
+    ceiling = 1019471
+
+    class_weights = {0: 1., 1: 5.}
     
-    history = model.fit(x = x_train,
-              y = [y_train[0], y_train[1], y_train[2], y_train[3], y_train[4]],
-              validation_data = (x_validate, [y_validate[0], y_validate[1], y_validate[2], y_validate[3], y_validate[4]]),
-              epochs = EPOCHS,
-              batch_size = 128,
-              verbose =2,
-              class_weight= class_weights,
-              callbacks=[mcp,tbCallback])
+    history = model.fit(x = x_train[[*one,*zero[0:ceiling]],:],
+          y = train.iloc[[*one,*zero[0:ceiling]],1].to_numpy(),
+          validation_data = (x_validate, validate.iloc[:,1].to_numpy()),
+          epochs = EPOCHS,
+          batch_size = 128,
+          verbose =2,
+          class_weight= class_weights,
+          callbacks=[mcp,tbCallback])
     
     
     #with open('history/History-ALL-40EP-CNN', 'wb') as file_pi:
@@ -191,88 +195,80 @@ def trainModel():
     # Load model
     model = tf.keras.models.load_model("model/model-ALL-last.hdf5")
     
-    results = model.evaluate(x_test, y_test, batch_size=128)
+    results = model.evaluate(x_train[[*one,*zero[0:ceiling]],:], train.iloc[[*one,*zero[0:ceiling]],1].to_numpy(), verbose=0, batch_size=128, )
     for num in range(0,len(model.metrics_names)):
         logging.debug(model.metrics_names[num]+': '+str(results[num]))
     
-    predicted = model.predict(x_test)
+    predicted = model.predict_classes(x_train[[*one,*zero[0:ceiling]],:])
+    predicted_prob = model.predict(x_train[[*one,*zero[0:ceiling]],:])
     
-    pred_test = [[],[],[],[],[]]
+    logging.debug('\nConfusion Matrix')
+    #predicted = model.predict_classes(x_test)
+    confusion = sklearn.metrics.confusion_matrix(y_true=train.iloc[[*one,*zero[0:ceiling]],1].to_numpy(), y_pred=predicted)
+    logging.debug(confusion)
     
-    for col in range(0,len(predicted)):
-        for row in predicted[col]:
-            if row[0] >= row[1]:
-                pred_test[col].append(0)
-            else:
-                pred_test[col].append(1)
-                
-    for col in range(0,len(predicted)):
-        logging.debug(pd.value_counts(pred_test[col]))
+    tn, fp, fn, tp = confusion.ravel()
+    logging.debug('\nTP:',tp)
+    logging.debug('FP:',fp)
+    logging.debug('TN:',tn)
+    logging.debug('FN:',fn)
     
-    for col in range(1,6):
-        logging.debug('\nThis is evaluation for column',col)
-        confusion = sklearn.metrics.confusion_matrix(y_true=test.iloc[:,col].to_numpy(), y_pred=pred_test[col-1])
-        logging.debug(confusion)
-        tn, fp, fn, tp = confusion.ravel()
-        logging.debug('\nTP:',tp)
-        logging.debug('FP:',fp)
-        logging.debug('TN:',tn)
-        logging.debug('FN:',fn)
+    ## Performance measure
+    logging.debug('\nAccuracy: '+ str(sklearn.metrics.accuracy_score(y_true=train.iloc[[*one,*zero[0:ceiling]],1].to_numpy(), y_pred=predicted)))
+    logging.debug('Precision: '+ str(sklearn.metrics.precision_score(y_true=train.iloc[[*one,*zero[0:ceiling]],1].to_numpy(), y_pred=predicted)))
+    logging.debug('Recall: '+ str(sklearn.metrics.recall_score(y_true=train.iloc[[*one,*zero[0:ceiling]],1].to_numpy(), y_pred=predicted)))
+    logging.debug('F-measure: '+ str(sklearn.metrics.f1_score(y_true=train.iloc[[*one,*zero[0:ceiling]],1].to_numpy(), y_pred=predicted)))
+    logging.debug('Precision-Recall AUC: '+ str(sklearn.metrics.average_precision_score(y_true=train.iloc[[*one,*zero[0:ceiling]],1].to_numpy(), y_score=predicted_prob)))
+    logging.debug('AUC: '+ str(sklearn.metrics.roc_auc_score(y_true=train.iloc[[*one,*zero[0:ceiling]],1].to_numpy(), y_score=predicted_prob)))
+    logging.debug('MCC: '+ str(sklearn.metrics.matthews_corrcoef(y_true=train.iloc[[*one,*zero[0:ceiling]],1].to_numpy(), y_pred=predicted)))
+        
     
-        ## Performance measure
-        logging.debug('\nAccuracy: '+ str(sklearn.metrics.accuracy_score(y_true=test.iloc[:,col].to_numpy(), y_pred=pred_test[col-1])))
-        logging.debug('Precision: '+ str(sklearn.metrics.precision_score(y_true=test.iloc[:,col].to_numpy(), y_pred=pred_test[col-1])))
-        logging.debug('Recall: '+ str(sklearn.metrics.recall_score(y_true=test.iloc[:,col].to_numpy(), y_pred=pred_test[col-1])))
-        logging.debug('F-measure: '+ str(sklearn.metrics.f1_score(y_true=test.iloc[:,col].to_numpy(), y_pred=pred_test[col-1])))
-        logging.debug('Precision-Recall AUC: '+ str(sklearn.metrics.average_precision_score(y_true=test.iloc[:,col].to_numpy(), y_score=predicted[col-1][:,1])))
-        logging.debug('AUC: '+ str(sklearn.metrics.roc_auc_score(y_true=test.iloc[:,col].to_numpy(), y_score=predicted[col-1][:,1])))
-        logging.debug('MCC: '+ str(sklearn.metrics.matthews_corrcoef(y_true=test.iloc[:,col].to_numpy(), y_pred=pred_test[col-1])))
+    ## Test data
+
+    results = model.evaluate(x_test, test.iloc[:,1].to_numpy(), batch_size=128)
+    for num in range(0,len(model.metrics_names)):
+        logging.debug(model.metrics_names[num]+': '+str(results[num]))
+    
+    predicted = model.predict_classes(x_test)
+    predicted_prob = model.predict(x_test)
+    
+    confusion = sklearn.metrics.confusion_matrix(y_true=test.iloc[:,1].to_numpy(), y_pred=predicted)
+    logging.debug(confusion)
+    tn, fp, fn, tp = confusion.ravel()
+    logging.debug('\nTP:',tp)
+    logging.debug('FP:',fp)
+    logging.debug('TN:',tn)
+    logging.debug('FN:',fn)
+    
+    ## Performance measure
+    logging.debug('\nAccuracy: '+ str(sklearn.metrics.accuracy_score(y_true=test.iloc[:,1].to_numpy(), y_pred=predicted)))
+    logging.debug('Precision: '+ str(sklearn.metrics.precision_score(y_true=test.iloc[:,1].to_numpy(), y_pred=predicted)))
+    logging.debug('Recall: '+ str(sklearn.metrics.recall_score(y_true=test.iloc[:,1].to_numpy(), y_pred=predicted)))
+    logging.debug('F-measure: '+ str(sklearn.metrics.f1_score(y_true=test.iloc[:,1].to_numpy(), y_pred=predicted)))
+    logging.debug('Precision-Recall AUC: '+ str(sklearn.metrics.average_precision_score(y_true=test.iloc[:,1].to_numpy(), y_score=predicted_prob)))
+    logging.debug('AUC: '+ str(sklearn.metrics.roc_auc_score(y_true=test.iloc[:,1].to_numpy(), y_score=predicted_prob)))
+    logging.debug('MCC: '+ str(sklearn.metrics.matthews_corrcoef(y_true=test.iloc[:,1].to_numpy(), y_pred=predicted)))
     
     
+    model.metrics_names
     epochs_range = range(len(history.history[model.metrics_names[1]]))
+
+    fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(20,15))
+    fig.suptitle('CNN with 40 Epochs, maxpool of 5, class weights of 1:5')
     
-    fig, axs = plt.subplots(2, 2, figsize=(20,15))
-    fig.suptitle('CNN with 10 Epochs')
-    
-    axs[0,0].plot(epochs_range, history.history['val_%s'%(model.metrics_names[6])], 'b', label='CWE-119', color='green')
-    axs[0,0].plot(epochs_range, history.history['val_%s'%(model.metrics_names[7])], 'b', label='CWE-120', color='blue')
-    axs[0,0].plot(epochs_range, history.history['val_%s'%(model.metrics_names[8])], 'b', label='CWE-469', color='red')
-    axs[0,0].plot(epochs_range, history.history['val_%s'%(model.metrics_names[9])], 'b', label='CWE-479', color='purple')
-    axs[0,0].plot(epochs_range, history.history['val_%s'%(model.metrics_names[10])], 'b', label='CWE-Other', color='orange')
-    axs[0,0].set_title('Training accuracy')
+    axs[0,0].plot(epochs_range, history.history[model.metrics_names[0]], 'b', label='Loss', color='red')
+    axs[0,0].plot(epochs_range, history.history[model.metrics_names[1]], 'b', label='Accuracy', color='green')
+    axs[0,0].set_title('Training accuracy & loss - CWE-119')
     axs[0,0].legend()
     
     
-    axs[0,1].plot(epochs_range, history.history['val_%s'%(model.metrics_names[1])], 'b', label='CWE-119', color='green')
-    axs[0,1].plot(epochs_range, history.history['val_%s'%(model.metrics_names[2])], 'b', label='CWE-120', color='blue')
-    axs[0,1].plot(epochs_range, history.history['val_%s'%(model.metrics_names[3])], 'b', label='CWE-469', color='red')
-    axs[0,1].plot(epochs_range, history.history['val_%s'%(model.metrics_names[4])], 'b', label='CWE-479', color='purple')
-    axs[0,1].plot(epochs_range, history.history['val_%s'%(model.metrics_names[5])], 'b', label='CWE-Other', color='orange')
-    axs[0,1].set_title('Training Loss')
+    axs[0,1].plot(epochs_range, history.history['val_%s'%(model.metrics_names[0])], 'b', label='Loss', color='red')
+    axs[0,1].plot(epochs_range, history.history['val_%s'%(model.metrics_names[1])], 'b', label='Accuracy', color='green')
+    axs[0,1].set_title('Validation accuracy & loss - CWE-119')
     axs[0,1].legend()
     
-    axs[1,0].plot(epochs_range, history.history[model.metrics_names[6]], 'b', label='CWE-119', color='green')
-    axs[1,0].plot(epochs_range, history.history[model.metrics_names[7]], 'b', label='CWE-120', color='blue')
-    axs[1,0].plot(epochs_range, history.history[model.metrics_names[8]], 'b', label='CWE-469', color='red')
-    axs[1,0].plot(epochs_range, history.history[model.metrics_names[9]], 'b', label='CWE-479', color='purple')
-    axs[1,0].plot(epochs_range, history.history[model.metrics_names[10]], 'b', label='CWE-Other', color='orange')
-    axs[1,0].set_title('Validation accuracy')
-    axs[1,0].legend()
     
     
-    axs[1,1].plot(epochs_range, history.history[model.metrics_names[1]], 'b', label='CWE-119', color='green')
-    axs[1,1].plot(epochs_range, history.history[model.metrics_names[2]], 'b', label='CWE-120', color='blue')
-    axs[1,1].plot(epochs_range, history.history[model.metrics_names[3]], 'b', label='CWE-469', color='red')
-    axs[1,1].plot(epochs_range, history.history[model.metrics_names[4]], 'b', label='CWE-479', color='purple')
-    axs[1,1].plot(epochs_range, history.history[model.metrics_names[5]], 'b', label='CWE-Other', color='orange')
-    axs[1,1].set_title('Validation Loss')
-    axs[1,1].legend()
-    
-    
-    
-    
-    
-
 def main(): 
     global args
     args = input_arguments()

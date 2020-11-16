@@ -1,4 +1,4 @@
-# Experiment 1-Replication
+# Automated Vulnerability Detection
 
 * This is from Russell et. al work (Automated Vulnerability Detection in Source Code Using Deep Representation Learning) https://arxiv.org/abs/1807.04320
 * Datasets downloaded from https://osf.io/d45bw/
@@ -14,18 +14,16 @@
 * Python 3.6.9 and Tensorflow 2.0.0
 
 ### Datasets  
+Approach 1:
+Uses original dataset which includes 5 class to solve multiple output binary classification problem
 
-Will be added if required.  
-Aside for having the 5 columns for y's (CWE-120...n ), we added a new column that has the results of a logical OR operation each row.  
-Therefore, the 7th column in the dataset is called "**combine**". This column allows for a binary detection of software vulnerabilities.  
-Since it is a multiple output binary classification problem, we simplified the problem to become a **binary** problem to immitate the results portrayed in the paper.  
-The 7th column addresses the question of whether the observation/row is **vulnerable** or **non-vulnerable**.  
+Approach 2:
+Focusing only one vulnerability. eg: CWE-119
 
-### Jupyter Lab Notebooks  
-
-1. `SVD_1.ipynb` - The experiments for multiple output multiple class vulnerability detection.  
-2. `SVD_2.ipynb` - The experiments for single class (**CWE-119**) binary detection.  
-3. `SVD_3.ipynb` - The experiments for binary detection of the newly added 7th column (**combine**).
+Approach 3:
+The results of a logical OR operation of columns for each row gave the function is vulnerable or non-vulnerable. 
+Therefore, the new column allows for a binary detection of software vulnerabilities. Since it is a multiple output binary classification problem, the problem is simplified to become a **binary** problem to immitate the results portrayed in the paper.  
+The new column addresses the question of whether the observation/row is **vulnerable** or **non-vulnerable**.  
 
 ### Results 
 #### SVD_1 (Multiple output binary classification)
@@ -90,3 +88,7 @@ The results are as below (30 epochs unless stated):
 * The size of `maxpool` is not mentioned in the paper. Therefore, in `SVD_2.ipynb` , we experimented with different sizes of maxpool. To achieve a suitable value that can maximizes the learning process when the max-pooling process occurs across the convolutions. We found that the size of `3-4` is fairly effective to capture the information across the source code embeddings
 
 * Due to the unbalanced datasets, we implements **class weights** and experimented with different values of class weights in `SVD_2.ipynb`. We found that the ratio of `1:5` and `1:3` **(Non-vul:Vul)** is good to balance the information acquired from both of the classes (**Vulnerable/Non-vulnerable**).
+
+
+References:
+Russell, R., Kim, L., Hamilton, L., Lazovich, T., Harer, J., Ozdemir, O., ... & McConley, M. (2018, December). Automated vulnerability detection in source code using deep representation learning. In 2018 17th IEEE International Conference on Machine Learning and Applications (ICMLA) (pp. 757-762). IEEE.
