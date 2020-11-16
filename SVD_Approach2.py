@@ -11,7 +11,7 @@ import sklearn.metrics
 
 import SVD_common as svdc
 
-def trainModel():
+def trainModel(dataset_name):
     global args;
     # Generate random seed
     #myrand=np.random.randint(1, 99999 + 1)
@@ -26,9 +26,9 @@ def trainModel():
     NUM_CLASSES=2
     EPOCHS=10
     
-    train=pd.read_pickle("pickle_file/"+args['dataset'][0]+"_train.pickle")
-    validate=pd.read_pickle("pickle_file/"+args['dataset'][0]+"_validate.pickle")
-    test=pd.read_pickle("pickle_file/"+args['dataset'][0]+"_test.pickle")
+    train=pd.read_pickle("pickle_file/"+dataset_name+"_train.pickle")
+    validate=pd.read_pickle("pickle_file/"+dataset_name+"_validate.pickle")
+    test=pd.read_pickle("pickle_file/"+dataset_name+"_test.pickle")
     
     for dataset in [train, validate, test]:
         for col in range(1,6):
@@ -235,7 +235,6 @@ def main():
     svdc.convert2Pickle(dataset_name)
     trainModel(dataset_name)
 
-args = None
 logger = None
 
 if __name__=="__main__": 
