@@ -1,6 +1,11 @@
 __pycache__/
 .spyproject
-
+CVEfixes.db
+test.pickle
+train.pickle
+validate.pickle
+full_set.pickle
+methods.pickle
 dataset/
 *.hdf5
 
